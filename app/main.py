@@ -5,14 +5,16 @@ the knowledge graph (with SSE progress streaming), querying via the
 GraphRAG pipeline, and managing dataset selection.
 """
 
+import io
 import os
 import json
 import asyncio
+import zipfile
 from pathlib import Path
 from typing import AsyncGenerator
 
 from fastapi import FastAPI, UploadFile, File, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, Response
 from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 
@@ -296,6 +298,78 @@ async def select_dataset(req: DatasetSelectRequest):
     state["active_dataset"] = req.dataset
     state["kg"] = None
     return {"active": req.dataset}
+
+
+@app.get("/export")
+async def export_kg():
+    """Serialize the current KG state into a downloadable .graphrag ZIP file.
+
+    The archive contains:
+    - ``triples.json``: list of {subject, relation, object} dicts.
+    - ``docs.json``: mapping of filename to document text.
+    - ``meta.json``: graph statistics for display on import.
+
+    Returns:
+        A binary ZIP response with Content-Disposition set to trigger download.
+
+    Raises:
+        HTTPException: 400 if no KG has been built yet.
+    """
+    if state["kg"] is None:
+        raise HTTPException(400, "KG non construit — construisez le graphe d'abord.")
+
+    triples_data = [
+        {"subject": u, "relation": d.get("relation", ""), "object": v}
+        for u, v, d in state["kg"].nx_graph.edges(data=True)
+    ]
+    stats = graph_to_json(state["kg"])["stats"]
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("triples.json", json.dumps(triples_data, ensure_ascii=False, indent=2))
+        zf.writestr("docs.json", json.dumps(state["docs_map"], ensure_ascii=False))
+        zf.writestr("meta.json", json.dumps(stats))
+    buf.seek(0)
+
+    return Response(
+        content=buf.read(),
+        media_type="application/zip",
+        headers={"Content-Disposition": "attachment; filename=demo.graphrag"},
+    )
+
+
+@app.post("/import")
+async def import_kg(file: UploadFile = File(...)):
+    """Restore a KG state from an uploaded .graphrag ZIP file.
+
+    Reads triples and docs from the archive, rebuilds the KnowledgeGraph
+    (no LLM calls needed), and stores it in ``state``.
+
+    Args:
+        file: The .graphrag ZIP file uploaded via multipart form data.
+
+    Returns:
+        A dict with ``"status": "ok"`` and ``"stats"`` from the rebuilt KG.
+
+    Raises:
+        HTTPException: 400 if the file is not a valid .graphrag archive.
+    """
+    content = await file.read()
+    try:
+        with zipfile.ZipFile(io.BytesIO(content), "r") as zf:
+            triples_data = json.loads(zf.read("triples.json"))
+            docs_map = json.loads(zf.read("docs.json"))
+    except (zipfile.BadZipFile, KeyError) as exc:
+        raise HTTPException(400, f"Fichier .graphrag invalide : {exc}")
+
+    from graphrag_core.extractor import Triple
+    triples = [Triple(t["subject"], t["relation"], t["object"]) for t in triples_data]
+    kg = build_knowledge_graph(triples, docs_map)
+
+    state["kg"] = kg
+    state["docs_map"] = docs_map
+
+    return {"status": "ok", "stats": graph_to_json(kg)["stats"]}
 
 
 app.mount("/", StaticFiles(directory=_BASE / "static", html=True), name="static")

@@ -20,20 +20,21 @@ function setAppState(s) {
   const sendBtn = document.getElementById('send-btn');
   const badge = document.getElementById('input-badge');
   const buildBtn = document.getElementById('build-btn');
+  const exportBtn = document.getElementById('export-btn');
   if (s === 'ready') {
     input.disabled = false; sendBtn.disabled = false;
     badge.classList.remove('visible'); buildBtn.textContent = '✓ Knowledge Graph construit';
-    buildBtn.disabled = true;
+    buildBtn.disabled = true; exportBtn.disabled = false;
     document.getElementById('progress-box').style.display = 'none';
     loadGraph();
   } else if (s === 'building') {
     input.disabled = true; sendBtn.disabled = true;
     badge.textContent = '⚙ Construction du KG en cours…'; badge.classList.add('visible');
-    buildBtn.disabled = true;
+    buildBtn.disabled = true; exportBtn.disabled = true;
   } else {
     input.disabled = true; sendBtn.disabled = true;
     badge.textContent = '⏳ Uploadez vos documents d\'abord'; badge.classList.add('visible');
-    buildBtn.disabled = false;
+    buildBtn.disabled = false; exportBtn.disabled = true;
   }
 }
 
@@ -367,6 +368,44 @@ async function initDocList() {
   files.forEach(addDocItem);
   if (files.length > 0) document.getElementById('build-btn').disabled = false;
 }
+
+/**
+ * Downloads the current KG as a .graphrag ZIP snapshot via GET /export.
+ * Triggers a browser download without navigating away from the page.
+ */
+async function exportKG() {
+  const res = await fetch(`${API}/export`);
+  if (!res.ok) { alert('Export impossible : le graphe n\'est pas encore construit.'); return; }
+  const blob = await res.blob();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'demo.graphrag';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+/**
+ * Handles a .graphrag file selection and imports it via POST /import.
+ * Rebuilds the KG on the backend (no LLM calls) and transitions to 'ready'.
+ */
+async function importKG() {
+  const input = document.getElementById('import-input');
+  const file = input.files[0];
+  if (!file) return;
+  const fd = new FormData();
+  fd.append('file', file);
+  input.value = '';
+  const res = await fetch(`${API}/import`, { method: 'POST', body: fd });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    alert('Import échoué : ' + (err.detail || 'fichier .graphrag invalide.'));
+    return;
+  }
+  setAppState('ready');
+}
+
+document.getElementById('export-btn').addEventListener('click', exportKG);
+document.getElementById('import-input').addEventListener('change', importKG);
 
 setAppState('upload');
 initDocList();

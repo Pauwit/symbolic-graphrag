@@ -40,6 +40,11 @@ body{font-family:'Inter',-apple-system,sans-serif;background:#f0f4ff;color:#1a1f
 .build-btn:disabled{opacity:.5;cursor:not-allowed}
 .reset-btn{display:none;font-size:12px;color:#94a3b8;background:transparent;border:1px solid #e2e8f0;border-radius:10px;padding:7px;cursor:pointer;width:100%}
 .reset-btn.visible{display:block}
+.export-btn{font-size:12px;color:#6366f1;background:transparent;border:1px solid rgba(99,102,241,.3);border-radius:10px;padding:7px;cursor:pointer;width:100%;transition:all .15s}
+.export-btn:disabled{opacity:.4;cursor:not-allowed}
+.export-btn:not(:disabled):hover{background:#eef2ff}
+.import-label{display:block;font-size:12px;color:#94a3b8;background:transparent;border:1px solid #e2e8f0;border-radius:10px;padding:7px;cursor:pointer;width:100%;text-align:center;transition:all .15s}
+.import-label:hover{border-color:rgba(99,102,241,.3);color:#6366f1}
 
 /* Progress */
 .progress-box{padding:0 13px 10px}
