@@ -37,8 +37,9 @@ groupe-G3-GraphRAG-.../
 │       ├── index.html            ← frontend single-page
 │       └── style.css
 ├── notebooks/
-│   ├── SW-11-Python-KnowledgeGraphs.ipynb   ← existant, enrichi
-│   ├── SW-12-Python-GraphRAG.ipynb          ← existant, enrichi
+│   ├── SW-11-Python-KnowledgeGraphs.ipynb   ← déplacé depuis la racine, enrichi
+│   ├── SW-12-Python-GraphRAG.ipynb          ← déplacé depuis la racine, enrichi
+│   ├── SW-4b-Python-SPARQL.ipynb            ← déplacé depuis la racine
 │   └── benchmark.ipynb                      ← nouveau
 ├── data/
 │   ├── hotpotqa/                 ← subset HotpotQA multi-hop
@@ -80,7 +81,7 @@ Reçoit un chunk de texte, envoie un prompt structuré au LLM, retourne une list
 ### `graph.py`
 - Construit le graphe RDF avec `rdflib` à partir des triplets extraits
 - Convertit vers NetworkX pour la community detection
-- Lance l'algorithme de Leiden (`graspologic` ou `networkx-leiden`) pour partitionner en communautés thématiques
+- Lance l'algorithme de Leiden (`leidenalg` via conversion NetworkX → igraph) pour partitionner en communautés thématiques
 - Expose : graphe NetworkX, nœuds/arêtes sérialisables JSON, communautés avec labels
 
 ### `retriever.py`
@@ -152,7 +153,7 @@ PipelineResult(
   - Toggle dataset : `HotpotQA | Corpus custom`
   - Liste des documents avec statut (✓ ou ⚙ En cours)
   - Bouton "Construire le Knowledge Graph" / état post-build
-  - Bouton "Réinitialiser" pour supprimer le corpus custom
+  - Bouton "Réinitialiser" pour supprimer le corpus custom (visible uniquement quand le toggle "Corpus custom" est actif)
 - **Zone droite** avec 2 tabs :
   - **💬 Q&A** — interface chat + drawer de détail
   - **🕸 Graphe de connaissances** — visualisation plein écran
@@ -171,7 +172,7 @@ PipelineResult(
 ### Tab Graphe
 - **Toolbar** : stats (N entités, N relations, N communautés) + filtres par communauté (badges colorés cliquables)
 - **Graphe D3.js** force-directed :
-  - Nœuds colorés par communauté (indigo = Extraction, violet = Systèmes RAG, ambre = Évaluation)
+  - Nœuds colorés par communauté (couleur assignée dynamiquement selon l'index de communauté : indigo, violet, ambre… selon le nombre détecté)
   - Zones communautés en ellipses pointillées avec label
   - Arêtes fléchées avec labels de relation
   - Halos lumineux (radial gradient SVG) sur les nœuds centraux
@@ -189,8 +190,8 @@ PipelineResult(
 
 ## 7. Notebooks
 
-### SW-11 et SW-12 (enrichis)
-Les cellules de démonstration existantes restent intactes (structure narrative conservée). Les exercices et exemples guides ajoutent des imports depuis `graphrag_core` pour illustrer l'usage du pipeline réel, sans remplacer le code pédagogique existant.
+### SW-11, SW-12 et SW-4b (déplacés + enrichis)
+Les trois notebooks existants à la racine du dossier G3 sont déplacés dans `notebooks/`. Les cellules de démonstration existantes restent intactes. Les exercices et exemples guides ajoutent des imports depuis `graphrag_core` pour illustrer l'usage du pipeline réel, sans remplacer le code pédagogique existant.
 
 ### `benchmark.ipynb` (nouveau)
 - Chargement d'un subset HotpotQA (500 questions)
