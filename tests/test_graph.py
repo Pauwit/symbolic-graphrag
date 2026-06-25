@@ -52,3 +52,16 @@ def test_empty_graph():
     data = graph_to_json(kg)
     assert data["stats"]["node_count"] == 0
     assert data["stats"]["community_count"] == 0
+
+
+def test_community_overview_structure():
+    """community_overview returns per-community size/color and global stats."""
+    from graphrag_core.graph import community_overview
+    kg = build_knowledge_graph(TRIPLES, {})
+    data = community_overview(kg)
+    assert "communities" in data and "stats" in data
+    assert data["stats"]["node_count"] == 4
+    total_size = sum(c["size"] for c in data["communities"])
+    assert total_size == 4
+    for c in data["communities"]:
+        assert set(c.keys()) == {"id", "label", "size", "color"}

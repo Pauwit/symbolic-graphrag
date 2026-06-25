@@ -166,3 +166,38 @@ def graph_to_json(kg: KnowledgeGraph) -> Dict[str, Any]:
             "community_count": len(kg.communities),
         },
     }
+
+
+def community_overview(kg: KnowledgeGraph) -> Dict[str, Any]:
+    """Serialise only the community-level summary of a KnowledgeGraph.
+
+    Unlike graph_to_json, this never lists individual nodes — the payload
+    size depends only on the number of communities, not on graph size.
+
+    Args:
+        kg: The KnowledgeGraph to summarise.
+
+    Returns:
+        A dict with ``communities`` (list of id/label/size/color dicts) and
+        ``stats`` (the same node/edge/community counts as graph_to_json).
+    """
+    sizes: Dict[int, int] = {}
+    for cid in kg.node_to_community.values():
+        sizes[cid] = sizes.get(cid, 0) + 1
+    communities = [
+        {
+            "id": c.id,
+            "label": c.label,
+            "size": sizes.get(c.id, 0),
+            "color": _COLORS[c.id % len(_COLORS)],
+        }
+        for c in kg.communities
+    ]
+    return {
+        "communities": communities,
+        "stats": {
+            "node_count": kg.nx_graph.number_of_nodes(),
+            "edge_count": kg.nx_graph.number_of_edges(),
+            "community_count": len(kg.communities),
+        },
+    }
