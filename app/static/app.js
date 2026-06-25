@@ -9,6 +9,11 @@ const MAX_NODES = 300;
 /** @type {Array<{role: string, content: string}>} */
 let chatHistory = [];
 
+/** Escapes user-controlled strings before inserting into innerHTML. */
+function escapeHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 /**
  * Updates the app state and refreshes all dependent UI elements.
  * @param {string} s - New state: 'upload', 'building', or 'ready'.
@@ -271,6 +276,8 @@ function nodeRadius(d) { return Math.max(4, Math.sqrt((d.degree || 1) + 1) * 2.8
 async function loadHubs() {
   try {
     const data = await (await fetch(`${API}/graph/hubs?limit=60`)).json();
+    expandOrigins.clear(); selectedNodeId = null;
+    document.getElementById('node-info').style.display = 'none';
     graphData = { nodes: data.nodes, edges: data.edges };
     viewMode = 'detail';
     document.getElementById('graph-back-btn').style.display = 'none';
@@ -289,6 +296,8 @@ async function openCommunity(id) {
   viewMode = 'detail';
   currentCommunityId = id;
   currentLimit = 150;
+  expandOrigins.clear(); selectedNodeId = null;
+  document.getElementById('node-info').style.display = 'none';
   graphData = { nodes: data.nodes, edges: data.edges };
   document.getElementById('graph-back-btn').style.display = 'inline-block';
   document.getElementById('load-more-btn').style.display = data.truncated ? 'inline-block' : 'none';
@@ -343,10 +352,10 @@ async function expandNode(name) {
   if (added.size > 0) {
     const prev = expandOrigins.get(name) || new Set();
     expandOrigins.set(name, new Set([...prev, ...added]));
+    // Show collapse button only when expansion actually added nodes
+    const colBtn = document.getElementById('node-info-collapse');
+    if (colBtn && selectedNodeId === name) colBtn.style.display = '';
   }
-  // Show collapse button now that this node has been expanded
-  const colBtn = document.getElementById('node-info-collapse');
-  if (colBtn && selectedNodeId === name) colBtn.style.display = '';
 }
 
 /**
@@ -377,7 +386,14 @@ function collapseNode(name) {
 
   // Re-open the node info to reflect the new state (collapse btn hidden again)
   const node = graphData.nodes.find(n => n.id === name);
-  if (node) openNodeInfo(node);
+  if (node) {
+    openNodeInfo(node);
+  } else {
+    document.getElementById('node-info').style.display = 'none';
+    selectedNodeId = null;
+    if (gNodes) gNodes.selectAll('g.node').select('circle')
+      .attr('stroke', d => d.color).attr('stroke-width', 0.5);
+  }
 }
 
 /**
@@ -431,7 +447,7 @@ function renderGraph(data) {
   // Links — enter/exit
   const edgeKey = d => { const s = typeof d.source === 'object' ? d.source.id : d.source; const t = typeof d.target === 'object' ? d.target.id : d.target; return `${s}||${t}`; };
   const linkSel = gLinks.selectAll('line').data(data.edges, edgeKey);
-  linkSel.enter().append('line').attr('stroke', '#1e1e2e').attr('stroke-width', 1).attr('opacity', 0)
+  linkSel.enter().append('line').attr('stroke', '#1e1e30').attr('stroke-width', 1).attr('opacity', 0)
     .transition().duration(500).attr('opacity', 0.55);
   linkSel.exit().transition().duration(200).attr('opacity', 0).remove();
 
@@ -445,8 +461,8 @@ function renderGraph(data) {
       const sId = e => typeof e.source === 'object' ? e.source.id : e.source;
       const tId = e => typeof e.target === 'object' ? e.target.id : e.target;
       const rels = data.edges.filter(e => sId(e) === d.id || tId(e) === d.id).slice(0, 6)
-        .map(e => `<div class="tt-rel">${sId(e)} →[${e.relation}]→ ${tId(e)}</div>`).join('');
-      tooltip.innerHTML = `<div class="tt-name">${d.id}</div><div class="tt-type">degree ${d.degree}</div>${rels}`;
+        .map(e => `<div class="tt-rel">${escapeHtml(sId(e))} →[${escapeHtml(e.relation)}]→ ${escapeHtml(tId(e))}</div>`).join('');
+      tooltip.innerHTML = `<div class="tt-name">${escapeHtml(d.id)}</div><div class="tt-type">degree ${escapeHtml(d.degree)}</div>${rels}`;
       tooltip.style.display = 'block'; tooltip.style.left = (event.pageX + 12) + 'px'; tooltip.style.top = (event.pageY - 20) + 'px';
     }).on('mousemove', e => { tooltip.style.left = (e.pageX + 12) + 'px'; tooltip.style.top = (e.pageY - 20) + 'px'; })
     .on('mouseout', () => { tooltip.style.display = 'none'; });
@@ -504,6 +520,8 @@ function showFocusSubgraph(nodeNames, edgeTuples) {
     .map(e => ({ source: e[0], target: e[2], relation: e[1] }));
   viewMode = 'detail';
   currentCommunityId = null;
+  expandOrigins.clear(); selectedNodeId = null;
+  document.getElementById('node-info').style.display = 'none';
   graphData = { nodes, edges };
   document.getElementById('graph-back-btn').style.display = 'inline-block';
   document.getElementById('load-more-btn').style.display = 'none';
@@ -557,7 +575,14 @@ function openNodeInfo(d) {
       const arrow = isSource ? '→' : '←';
       const card = document.createElement('div');
       card.className = 'rel-card';
-      card.innerHTML = `<div class="rel-card-predicate">${arrow} [${e.relation}]</div><div class="rel-card-target">${other}</div>`;
+      const pred = document.createElement('div');
+      pred.className = 'rel-card-predicate';
+      pred.textContent = `${arrow} [${e.relation}]`;
+      const tgt = document.createElement('div');
+      tgt.className = 'rel-card-target';
+      tgt.textContent = other;
+      card.appendChild(pred);
+      card.appendChild(tgt);
       card.addEventListener('click', () => {
         const target = (graphData?.nodes || []).find(n => n.id === other);
         if (target) openNodeInfo(target);
