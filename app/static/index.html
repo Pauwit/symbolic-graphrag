@@ -106,7 +106,23 @@
           <div class="comm-filters-wrap"><div class="comm-filters" id="comm-filters"></div></div>
           <button class="load-more-btn" id="load-more-btn" style="display:none">Load 150 more ↓</button>
         </div>
-        <svg id="graph-svg" style="flex:1;width:100%"></svg>
+        <div style="flex:1;display:flex;overflow:hidden">
+          <svg id="graph-svg" style="flex:1"></svg>
+          <div id="node-info" class="node-info-panel">
+            <div class="node-info-header">
+              <span class="node-info-section-label">Node</span>
+              <button id="node-info-close" class="node-info-close">×</button>
+            </div>
+            <div id="node-info-name" class="node-info-name"></div>
+            <div id="node-info-meta" class="node-info-meta"></div>
+            <div class="node-action-row">
+              <button id="node-info-expand" class="node-expand-btn">＋ Expand</button>
+              <button id="node-info-collapse" class="node-collapse-btn" style="display:none">− Collapse</button>
+            </div>
+            <div class="node-info-rels-label">Relations</div>
+            <div id="node-info-rels" class="node-info-rels"></div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
